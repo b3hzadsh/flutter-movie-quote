@@ -124,9 +124,9 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ github.ref_name }}
-          name: "News Aggregator ${{ github.ref_name }}"
+          name: "Flutter Quote ${{ github.ref_name }}"
           body: |
-            News Aggregator release version ${{ github.ref_name }}
+            Flutter Quote release version ${{ github.ref_name }}
 
             Download for Android:
             • AAB file (for Google Play and Myket)
@@ -163,7 +163,7 @@ jobs:
           zip_password = "123"
 
           # ۱. ارسال پیام متنی اولیه
-          msg_text = f"🚀 **نسخه جدید منتشر شد: {release_name}**\n\nفایل‌های خروجی در حال آپلود مستقیم در کانال هستند...\n\n🔗 [مشاهده تغییرات در گیت‌هاب]({release_url})"
+          msg_text = f"🚀 **نسخه جدید flutter quote منتشر شد: {release_name}**\n\nفایل‌های خروجی در حال آپلود مستقیم در کانال هستند...\n\n🔗 [مشاهده تغییرات در گیت‌هاب]({release_url})"
           try:
               requests.post(f"{base_url}/sendMessage", json={"chat_id": chat_id, "text": msg_text, "parse_mode": "Markdown"}).raise_for_status()
               print("[OK] Initial notification sent.")
