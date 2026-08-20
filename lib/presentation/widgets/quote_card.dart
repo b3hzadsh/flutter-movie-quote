@@ -46,10 +46,12 @@ class QuoteCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              item.text,
-              textDirection: TextDirection.rtl,
-              style: theme.textTheme.bodyMedium,
+            Center(
+              child: Text(
+                item.text,
+                textDirection: TextDirection.rtl,
+                style: theme.textTheme.bodyMedium,
+              ),
             ),
           ],
         ),

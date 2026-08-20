@@ -6,6 +6,10 @@ on:
       - 'v*.*.*'
   workflow_dispatch:
 
+# اعمال متغیر محیطی در سطح کل ورک‌فلو برای پوشش تمامی Jobها و حل خطای Node 20
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 permissions:
   contents: write
   packages: write
@@ -14,9 +18,7 @@ jobs:
   build-android:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -27,7 +29,7 @@ jobs:
       # 1. Java + Flutter setup
       # ------------------------------------------------------------------
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5 # حل خطای مربوط به deprecate شدن v4
         with:
           distribution: temurin
           java-version: '17'
@@ -41,7 +43,7 @@ jobs:
           cache: true
 
       # ------------------------------------------------------------------
-      # 2. Cache pub dependencies (huge time saver)
+      # 2. Cache pub dependencies
       # ------------------------------------------------------------------
       - name: Cache pub dependencies
         uses: actions/cache@v4
@@ -102,7 +104,7 @@ jobs:
           retention-days: 30
 
   # ----------------------------------------------------------------------
-  # 8. Create GitHub Release & Upload Directly to Bale Channel
+  # 8. Create GitHub Release
   # ----------------------------------------------------------------------
   create-release:
     needs: build-android
@@ -111,7 +113,7 @@ jobs:
 
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4 # خطای Node در اینجا به لطف env سطح بالا حل می‌شود
 
       - name: Prepare release assets
         run: |
