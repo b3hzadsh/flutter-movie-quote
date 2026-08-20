@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:io' show exit;
 import 'package:persian_quote/presentation/pages/bookmark_page.dart';
 import 'package:persian_quote/presentation/pages/news_list_page.dart';
 
@@ -98,7 +99,11 @@ class HomePage extends StatelessWidget {
                         TextButton(
                           onPressed: () {
                             Navigator.pop(ctx);
-                            SystemNavigator.pop();
+                            try {
+                              SystemNavigator.pop();
+                            } catch (_) {
+                              exit(0);
+                            }
                           },
                           child: const Text('بله'),
                         ),

@@ -53,8 +53,6 @@ class QuoteCard extends StatelessWidget {
             Text(
               item.text,
               style: theme.textTheme.bodyMedium,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

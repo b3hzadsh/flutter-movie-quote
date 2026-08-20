@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:persian_quote/presentation/cubits/quote_cubit.dart';
-import 'package:persian_quote/presentation/widgets/news_card.dart';
+import 'package:persian_quote/presentation/widgets/quote_card.dart';
 
 class BookmarkPage extends StatefulWidget {
   const BookmarkPage({super.key});
