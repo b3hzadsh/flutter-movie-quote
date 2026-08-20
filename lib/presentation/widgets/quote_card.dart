@@ -35,13 +35,9 @@ class QuoteCard extends StatelessWidget {
                 ),
                 IconButton(
                   icon: Icon(
-                    item.isBookmarked
-                        ? Icons.bookmark
-                        : Icons.bookmark_border,
+                    item.isBookmarked ? Icons.bookmark : Icons.bookmark_border,
                     size: 20,
-                    color: item.isBookmarked
-                        ? theme.colorScheme.primary
-                        : null,
+                    color: item.isBookmarked ? theme.colorScheme.primary : null,
                   ),
                   onPressed: onBookmarkToggle,
                   constraints: const BoxConstraints(),
@@ -52,6 +48,7 @@ class QuoteCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               item.text,
+              textDirection: TextDirection.rtl,
               style: theme.textTheme.bodyMedium,
             ),
           ],

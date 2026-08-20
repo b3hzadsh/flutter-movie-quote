@@ -6,7 +6,8 @@ import '../widgets/quote_card.dart';
 
 class NewsListPage extends StatefulWidget {
   final String title;
-  const NewsListPage({super.key, required this.title});
+  final String? movieTitle;
+  const NewsListPage({super.key, required this.title, this.movieTitle});
 
   @override
   State<NewsListPage> createState() => _NewsListPageState();
@@ -17,7 +18,11 @@ class _NewsListPageState extends State<NewsListPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<QuoteCubit>().init();
+      if (widget.movieTitle != null) {
+        context.read<QuoteCubit>().loadByMovie(widget.movieTitle!);
+      } else {
+        context.read<QuoteCubit>().init();
+      }
     });
   }
 
@@ -34,6 +39,20 @@ class _NewsListPageState extends State<NewsListPage> {
                 centerTitle: true,
                 title: Text(widget.title),
                 actions: [
+                  if (widget.movieTitle != null)
+                    IconButton(
+                      icon: const Icon(Icons.clear_all),
+                      tooltip: 'نمایش همه',
+                      onPressed: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const NewsListPage(title: 'جملات فیلم‌ها'),
+                          ),
+                        );
+                      },
+                    ),
                   BlocBuilder<ThemeCubit, ThemeMode>(
                     builder: (context, mode) {
                       return IconButton(
@@ -95,7 +114,7 @@ class _NewsListPageState extends State<NewsListPage> {
                           onPressed: state.hasPreviousPage
                               ? () => context.read<QuoteCubit>().previousPage()
                               : null,
-                          icon: const Icon(Icons.chevron_right),
+                          icon: const Icon(Icons.chevron_left),
                           label: const Text('قبلی'),
                         ),
                         Text(
@@ -106,7 +125,7 @@ class _NewsListPageState extends State<NewsListPage> {
                           onPressed: state.hasNextPage
                               ? () => context.read<QuoteCubit>().nextPage()
                               : null,
-                          icon: const Icon(Icons.chevron_left),
+                          icon: const Icon(Icons.chevron_right),
                           label: const Text('بعدی'),
                         ),
                       ],

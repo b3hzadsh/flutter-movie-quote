@@ -13,6 +13,7 @@ class QuoteState {
   final bool isLoading;
   final String? error;
   final bool isShowingBookmarks;
+  final String? movieTitleFilter;
 
   QuoteState({
     required this.items,
@@ -21,6 +22,7 @@ class QuoteState {
     this.isLoading = false,
     this.error,
     this.isShowingBookmarks = false,
+    this.movieTitleFilter,
   });
 
   QuoteState copyWith({
@@ -30,6 +32,7 @@ class QuoteState {
     bool? isLoading,
     String? error,
     bool? isShowingBookmarks,
+    String? movieTitleFilter,
   }) {
     return QuoteState(
       items: items ?? this.items,
@@ -38,6 +41,7 @@ class QuoteState {
       isLoading: isLoading ?? this.isLoading,
       error: error ?? this.error,
       isShowingBookmarks: isShowingBookmarks ?? this.isShowingBookmarks,
+      movieTitleFilter: movieTitleFilter ?? this.movieTitleFilter,
     );
   }
 
@@ -62,6 +66,7 @@ class QuoteCubit extends Cubit<QuoteState> {
   final GetProductsUseCase getProductsUseCase;
   final ChangeQuoteUseCase changeQuoteUseCase;
   StreamSubscription? _subscription;
+  List<QuoteItem> _allItems = [];
 
   QuoteCubit(
     this.changeQuoteUseCase,
@@ -81,12 +86,45 @@ class QuoteCubit extends Cubit<QuoteState> {
     emit(state.copyWith(isLoading: true));
     try {
       final items = await getProductsUseCase();
-      emit(state.copyWith(items: items, isLoading: false));
+      _allItems = items;
+      emit(state.copyWith(
+        items: items,
+        isLoading: false,
+        movieTitleFilter: null,
+      ));
       return items;
     } catch (e) {
       emit(state.copyWith(isLoading: false, error: e.toString()));
       return [];
     }
+  }
+
+  Future<void> loadByMovie(String movieTitle) async {
+    emit(state.copyWith(isLoading: true));
+    try {
+      if (_allItems.isEmpty) {
+        await init();
+      }
+      final filtered = _allItems
+          .where((item) => item.movieTitle == movieTitle)
+          .toList();
+      emit(state.copyWith(
+        items: filtered,
+        currentPage: 0,
+        isLoading: false,
+        movieTitleFilter: movieTitle,
+      ));
+    } catch (e) {
+      emit(state.copyWith(isLoading: false, error: e.toString()));
+    }
+  }
+
+  void loadAll() {
+    emit(state.copyWith(
+      items: _allItems,
+      currentPage: 0,
+      movieTitleFilter: null,
+    ));
   }
 
  Future<void> toggleBookmark(QuoteItem item) async {
