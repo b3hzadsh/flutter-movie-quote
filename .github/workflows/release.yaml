@@ -1,0 +1,220 @@
+name: Build and Release Flutter App
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ------------------------------------------------------------------
+      # 1. Java + Flutter setup
+      # ------------------------------------------------------------------
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.1
+          channel: stable
+          cache: true
+
+      # ------------------------------------------------------------------
+      # 2. Cache pub dependencies (huge time saver)
+      # ------------------------------------------------------------------
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool/package_config.json
+          key: ${{ runner.os }}-flutter-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-pub-
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      # ------------------------------------------------------------------
+      # 5. Decode signing keystore (only for AAB)
+      # ------------------------------------------------------------------
+      - name: Decode and create keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          mkdir -p android/app
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/key.jks
+          cat <<EOF > android/key.properties
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=key.jks
+          EOF
+
+      # ------------------------------------------------------------------
+      # 6. Build both APK (split) + AAB in parallel inside the same job
+      # ------------------------------------------------------------------
+      - name: Build Release APK (split per ABI)
+        run: flutter build apk --release --split-per-abi
+
+      - name: Build Release App Bundle (AAB)
+        run: flutter build appbundle --release --obfuscate --split-debug-info=build/debug-info --tree-shake-icons
+
+      # ------------------------------------------------------------------
+      # 7. Upload artifacts
+      # ------------------------------------------------------------------
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-release
+          path: build/app/outputs/flutter-apk/*.apk
+          retention-days: 30
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: appbundle-release
+          path: build/app/outputs/bundle/release/app-release.aab
+          retention-days: 30
+
+  # ----------------------------------------------------------------------
+  # 8. Create GitHub Release & Upload Directly to Bale Channel
+  # ----------------------------------------------------------------------
+  create-release:
+    needs: build-android
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          find . -name "*.apk" -o -name "*.aab" | xargs -I {} cp {} release-assets/
+          ls -la release-assets/
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ github.ref_name }}
+          name: "News Aggregator ${{ github.ref_name }}"
+          body: |
+            News Aggregator release version ${{ github.ref_name }}
+
+            Download for Android:
+            • AAB file (for Google Play and Myket)
+            • Split APKs for different ABIs (arm64-v8a, armeabi-v7a, x86_64)
+
+            What's New:
+            - Initial release or latest updates
+            - Bug fixes and performance improvements
+          artifacts: "release-assets/*"
+          allowUpdates: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ------------------------------------------------------------------
+      # 9. Send Notification & Upload Files to Bale Messenger (Encrypted ZIP)
+      # ------------------------------------------------------------------
+      - name: Send Files and Notification to Bale
+        env:
+          BOT_TOKEN: ${{ secrets.BALE_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.BALE_CHAT_ID }}
+          RELEASE_NAME: "News Aggregator ${{ github.ref_name }}"
+          RELEASE_URL: ${{ steps.create_release.outputs.html_url }}
+        run: |
+          pip install requests
+          python -c '
+          import os, glob, requests, subprocess
+
+          bot_token = os.environ.get("BOT_TOKEN")
+          chat_id = os.environ.get("CHAT_ID")
+          release_name = os.environ.get("RELEASE_NAME")
+          release_url = os.environ.get("RELEASE_URL")
+          base_url = f"https://tapi.bale.ai/bot{bot_token}"
+          
+          # رمز عبور ثابت برای دور زدن فیلتر
+          zip_password = "123"
+
+          # ۱. ارسال پیام متنی اولیه
+          msg_text = f"🚀 **نسخه جدید منتشر شد: {release_name}**\n\nفایل‌های خروجی در حال آپلود مستقیم در کانال هستند...\n\n🔗 [مشاهده تغییرات در گیت‌هاب]({release_url})"
+          try:
+              requests.post(f"{base_url}/sendMessage", json={"chat_id": chat_id, "text": msg_text, "parse_mode": "Markdown"}).raise_for_status()
+              print("[OK] Initial notification sent.")
+          except Exception as e:
+              print(f"[WARNING] Could not send initial message: {e}")
+
+          # ۲. فشرده‌سازی و آپلود فایل‌ها
+          for file_path in glob.glob("release-assets/*"):
+              if not os.path.isfile(file_path): 
+                  continue
+                  
+              original_filename = os.path.basename(file_path)
+              
+              if original_filename.endswith(".aab"):
+                  print(f"[SKIP] Ignoring {original_filename}")
+                  continue
+
+              upload_filepath = file_path
+              upload_filename = original_filename
+              caption_text = f"📦 فایل خروجی: `{original_filename}`"
+              
+              # اگر فایل APK است، آن را واقعاً با پسورد زیپ کن
+              if original_filename.endswith(".apk"):
+                  zip_filename = f"{original_filename}.zip"
+                  zip_filepath = f"release-assets/{zip_filename}"
+                  
+                  print(f"\n[*] Compressing and encrypting {original_filename}...")
+                  
+                  # استفاده از دستور zip لینوکس: 
+                  # فلگ -j باعث می‌شود فقط خود فایل زیپ شود نه پوشه‌های مسیرش
+                  # فلگ -P پسورد را اعمال می‌کند
+                  subprocess.run(["zip", "-j", "-P", zip_password, zip_filepath, file_path], check=True)
+                  
+                  upload_filepath = zip_filepath
+                  upload_filename = zip_filename
+                  caption_text += f"\n\n🔒 **توجه:** برای عبور از فیلتر پیام‌رسان بله، فایل به صورت رمزگذاری‌شده فشرده شده است.\n🔑 **رمز فایل:** `{zip_password}`"
+
+              print(f"\n[→] Uploading {upload_filename}...")
+              
+              with open(upload_filepath, "rb") as f:
+                  try:
+                      resp = requests.post(
+                          f"{base_url}/sendDocument",
+                          data={"chat_id": chat_id, "caption": caption_text, "parse_mode": "Markdown"},
+                          files={"document": (upload_filename, f)},
+                          timeout=300
+                      )
+                      if resp.status_code == 200:
+                          print(f"[OK] {upload_filename} uploaded successfully.")
+                      else:
+                          print(f"[ERROR] Failed to upload {upload_filename}. HTTP {resp.status_code}: {resp.text}")
+                  except Exception as e:
+                      print(f"[FATAL] Unexpected error: {e}")
+          '
