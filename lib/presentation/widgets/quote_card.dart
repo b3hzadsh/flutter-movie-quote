@@ -18,42 +18,49 @@ class QuoteCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  item.movieTitle,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.bold,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 150),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    item.movieTitle,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    item.isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                    size: 20,
-                    color: item.isBookmarked ? theme.colorScheme.primary : null,
+                  IconButton(
+                    icon: Icon(
+                      item.isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                      size: 20,
+                      color: item.isBookmarked ? theme.colorScheme.primary : null,
+                    ),
+                    onPressed: onBookmarkToggle,
+                    constraints: const BoxConstraints(),
+                    padding: EdgeInsets.zero,
                   ),
-                  onPressed: onBookmarkToggle,
-                  constraints: const BoxConstraints(),
-                  padding: EdgeInsets.zero,
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Center(
-              child: Text(
-                item.text,
-                textDirection: TextDirection.rtl,
-                style: theme.textTheme.bodyMedium,
+                ],
               ),
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsets.all(2),
+                child: Align(
+                  alignment: Alignment.topRight,
+                  child: Text(
+                    item.text,
+                    textDirection: TextDirection.rtl,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
